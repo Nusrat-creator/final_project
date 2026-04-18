@@ -2,7 +2,7 @@
 #define SAP_FINAL_PATIENT_H
 struct Patient {
     int PatientID;
-    char name[20];
+    char name[50];
     int age;
     char gender[10];
     char contact[100];
@@ -11,7 +11,9 @@ struct Patient {
     struct Patient* next;
     struct Patient* prev;
 };
-void registerPatient();
-void updatePatient(int PatientID);
-void retrievePatient(int PatientID);
-#endif //SAP_FINAL_PATIENT_H
+void register_Patient();
+void update_Patient(int PatientID);
+struct Patient* retrieve_patient(int PatientID);
+void delete_Patient(int PatientID);
+struct Patient* search_Patient(int PatientID);
+#endif
