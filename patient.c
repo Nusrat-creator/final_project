@@ -123,6 +123,39 @@ void delete_Patient(int PatientID) {
     free(patient);
     printf("Patient is deleted successfully.\n");
 }
+void savePatients() {
+    FILE *f = fopen("patients.txt", "w");
+    if (!f) return;
+    struct Patient* curr = patientHead;
+    while (curr) {
+        int docID = (curr->Doctor) ? curr->Doctor->doctorID : -1;
+        fprintf(f, "%d|%s|%d|%s|%s|%s|%d\n",
+                curr->PatientID, curr->name, curr->age, curr->gender,
+                curr->contact, curr->medical_history, docID);
+        curr = curr->next;
+    }
+    fclose(f);
+}
+
+void loadPatients() {
+    FILE *f = fopen("patients.txt", "r");
+    if (!f) return;
+    while (!feof(f)) {
+        struct Patient* p = malloc(sizeof(struct Patient));
+        int docID;
+        if (fscanf(f, "%d|%[^|]|%d|%[^|]|%[^|]|%[^|]|%d\n",
+            &p->PatientID, p->name, &p->age, p->gender,
+            p->contact, p->medical_history, &docID) == 7) {
+
+            p->Doctor = searchDoctorByID(docID); // Re-linking
+            p->next = NULL;
+            if (!patientHead) { p->prev = NULL; patientHead = p; patientTail = p; }
+            else { p->prev = patientTail; patientTail->next = p; patientTail = p; }
+            if (p->PatientID > patientCounter) patientCounter = p->PatientID;
+            } else { free(p); }
+    }
+    fclose(f);
+}
 
 
 
