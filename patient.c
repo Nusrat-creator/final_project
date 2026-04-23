@@ -1,12 +1,10 @@
-//
-// Created by ufaz on 4/18/26.
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "doctor.h"
 #include "patient.h"
 #include "globals.h"
+
 void register_Patient() {
     int doc_id;
     struct Patient* newPat = (struct Patient*)malloc(sizeof(struct Patient));
@@ -25,7 +23,7 @@ void register_Patient() {
     printf("Enter Doctor's ID: ");
     scanf("%d", &doc_id);
     while (searchDoctorByID(doc_id) == NULL) {
-        printf("Doctor does not exist!Please write a correct id!\n");
+        printf("Doctor does not exist! Please enter a correct ID: ");
         scanf("%d", &doc_id);
     }
     newPat->Doctor = searchDoctorByID(doc_id);
@@ -42,34 +40,41 @@ void register_Patient() {
     }
     printf("Patient registered with ID: %d\n", newPat->PatientID);
 }
-struct Patient* search_Patient(int PatientID) {
-    struct Patient* curr = patientHead;
-    while (curr != NULL) {
-        if (curr->PatientID == PatientID) return curr;
-        curr = curr->next;
+
+/* FIX: New silent search — just finds and returns the pointer without printing.
+   Used internally and by report.c to avoid double-printing patient info. */
+struct Patient* searchPatientByID(int PatientID) {
+    struct Patient* patient = patientHead;
+    while (patient != NULL) {
+        if (patient->PatientID == PatientID) return patient;
+        patient = patient->next;
     }
     return NULL;
-
 }
+
+/* retrieve_patient now delegates finding to searchPatientByID, then prints. */
 struct Patient* retrieve_patient(int PatientID) {
-    struct Patient* patient;
-    patient = search_Patient(PatientID);
-    if (patient == NULL) {return NULL;}
-    printf("All information about Patient:\n");
-    printf("Name: %s Age: %d Contact: %s Medical History: %s Gender: %s ", patient->name,patient->age,patient->contact,patient->medical_history,patient->gender);
-    if (patient->Doctor != NULL) {
-        printf("Assigned Doctor's ID and Name:%d,%s",patient->Doctor->doctorID,patient->Doctor->name);
+    struct Patient* patient = searchPatientByID(PatientID);
+    if (patient != NULL) {
+        printf("\nAll information about Patient:\n");
+        printf("Name: %s | Age: %d | Contact: %s | Medical History: %s | Gender: %s\n",
+               patient->name, patient->age, patient->contact,
+               patient->medical_history, patient->gender);
+        if (patient->Doctor != NULL) {
+            printf("Assigned Doctor ID: %d, Name: %s\n",
+                   patient->Doctor->doctorID, patient->Doctor->name);
+        }
     }
     return patient;
-
 }
 
 void update_Patient(int PatientID) {
     char info;
     int doc_id;
-    struct Patient* patient= search_Patient(PatientID);
-    if (patient == NULL) {printf("Patient does not exist\n"); return;}
-    printf("What detail do you want to update?Age,Gender,Contact,Medical History,name,assigned doctor(with id)?(a/g/c/m/n/d)\n");
+    /* FIX: Use silent searchPatientByID so we don't print patient info on update. */
+    struct Patient* patient = searchPatientByID(PatientID);
+    if (patient == NULL) { printf("Patient does not exist\n"); return; }
+    printf("What detail do you want to update? Age/Gender/Contact/Medical History/Name/Doctor (a/g/c/m/n/d): ");
     scanf(" %c", &info);
     switch (info) {
         case 'a':
@@ -92,37 +97,21 @@ void update_Patient(int PatientID) {
             scanf(" %[^\n]", patient->name);
             printf("Name is now %s\n", patient->name);
             break;
-
         case 'd':
             scanf("%d", &doc_id);
-            if (searchDoctorByID(doc_id) != NULL ) {
+            if (searchDoctorByID(doc_id) != NULL) {
                 patient->Doctor = searchDoctorByID(doc_id);
-            }
-            else {
-                printf("Doctor does not exist\n");
+                printf("Doctor updated.\n");
+            } else {
+                printf("Doctor does not exist.\n");
             }
             break;
-
-
         default:
-            printf("User didn't write requested thing,change declined");
+            printf("Invalid option — change declined.\n");
             break;
-
-        }
     }
-void delete_Patient(int PatientID) {
-    struct Patient* patient = search_Patient(PatientID);
-    if (patient == NULL) {
-        printf("Patient not found.\n");
-        return;
-    }
-    if (patient->prev != NULL) patient->prev->next = patient->next;
-    else patientHead = patient->next;
-    if (patient->next != NULL) patient->next->prev = patient->prev;
-    else patientTail = patient->prev;
-    free(patient);
-    printf("Patient is deleted successfully.\n");
 }
+
 void savePatients() {
     FILE *f = fopen("patients.txt", "w");
     if (!f) return;
@@ -140,28 +129,23 @@ void savePatients() {
 void loadPatients() {
     FILE *f = fopen("patients.txt", "r");
     if (!f) return;
-    while (!feof(f)) {
+    /* FIX: Replaced while(!feof()) — that pattern reads the last record twice.
+       Now we allocate inside the loop and break when fscanf doesn't match. */
+    while (1) {
         struct Patient* p = malloc(sizeof(struct Patient));
+        if (!p) break;
         int docID;
-        if (fscanf(f, "%d|%[^|]|%d|%[^|]|%[^|]|%[^|]|%d\n",
+        if (fscanf(f, "%d|%19[^|]|%d|%9[^|]|%99[^|]|%99[^|]|%d\n",
             &p->PatientID, p->name, &p->age, p->gender,
-            p->contact, p->medical_history, &docID) == 7) {
-
-            p->Doctor = searchDoctorByID(docID); // Re-linking
-            p->next = NULL;
-            if (!patientHead) { p->prev = NULL; patientHead = p; patientTail = p; }
-            else { p->prev = patientTail; patientTail->next = p; patientTail = p; }
-            if (p->PatientID > patientCounter) patientCounter = p->PatientID;
-            } else { free(p); }
+            p->contact, p->medical_history, &docID) != 7) {
+            free(p);
+            break;
+        }
+        p->Doctor = searchDoctorByID(docID);
+        p->next = NULL;
+        if (!patientHead) { p->prev = NULL; patientHead = p; patientTail = p; }
+        else { p->prev = patientTail; patientTail->next = p; patientTail = p; }
+        if (p->PatientID > patientCounter) patientCounter = p->PatientID;
     }
     fclose(f);
 }
-
-
-
-
-
-
-
-
-
