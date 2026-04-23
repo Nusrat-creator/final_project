@@ -89,7 +89,7 @@ void revenueReport() {
     float unpaidTotal = 0.0;
     struct Bill* bill = billHead;
     while (bill != NULL) {
-        if (strcmp(bill->paymentStatus,"paid")) {
+        if (strcmp(bill->paymentStatus,"paid") == 0) {
             paidTotal += bill->totalAmount;
         } else {
             unpaidTotal += bill->totalAmount;
